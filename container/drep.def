@@ -30,9 +30,14 @@ From: condaforge/miniforge3:24.9.2-0
 %post
     set -eu
 
+    # A dedicated environment, NOT base. Installing into base makes the solver
+    # swap out the python that conda and mamba themselves run on, and the build
+    # dies with `ImportError: libxml2.so.2` from libmambapy -- after the solve,
+    # so the failure looks unrelated to the request that caused it.
+    #
     # skani pinned to the version the reference image carried, so results stay
     # comparable with the catalogues already built.
-    mamba install -y -q -c conda-forge -c bioconda \
+    mamba create -y -q -n drep -c conda-forge -c bioconda \
         python=3.12 \
         skani=0.2.2 \
         numpy pandas scipy seaborn matplotlib biopython scikit-learn tqdm \
@@ -41,16 +46,17 @@ From: condaforge/miniforge3:24.9.2-0
 
     # Drop the git metadata and any build leftovers before installing.
     rm -rf /opt/drep-src/.git /opt/drep-src/container
-    pip install --no-cache-dir --no-deps /opt/drep-src
+    /opt/conda/envs/drep/bin/pip install --no-cache-dir --no-deps /opt/drep-src
 
     # Fail the build rather than ship an image whose dRep is not ours: both
     # changes must be present and importable.
-    python -c "import drep, os; v=open(os.path.join(os.path.dirname(drep.__file__),'VERSION')).read().strip(); assert v.startswith('4.0.'), v; print('dRep', v)"
-    python -c "from drep.d_cluster import _fast_skani; assert hasattr(_fast_skani,'load_skani'); print('fastskani OK')"
-    python -c "from drep.argumentParser import parse_args; a=parse_args(['dereplicate','o','-g','a.fa','--skip-widb']); assert a.skip_widb; print('--skip-widb OK')"
-    skani --version
+    /opt/conda/envs/drep/bin/python -c "import drep, os; v=open(os.path.join(os.path.dirname(drep.__file__),'VERSION')).read().strip(); assert v.startswith('4.0.'), v; print('dRep', v)"
+    /opt/conda/envs/drep/bin/python -c "from drep.d_cluster import _fast_skani; assert hasattr(_fast_skani,'load_skani'); print('fastskani OK')"
+    /opt/conda/envs/drep/bin/python -c "from drep.argumentParser import parse_args; a=parse_args(['dereplicate','o','-g','a.fa','--skip-widb']); assert a.skip_widb; print('--skip-widb OK')"
+    /opt/conda/envs/drep/bin/skani --version
 
 %environment
+    export PATH=/opt/conda/envs/drep/bin:$PATH
     export LC_ALL=C.UTF-8
     export LANG=C.UTF-8
 
