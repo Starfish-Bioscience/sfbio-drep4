@@ -50,10 +50,11 @@ def dereplicate_wrapper(wd,**kwargs):
 ***************************************************
     """
     logging.info(message)
-    if kwargs.get('gen_warnings', False):
-        evaluate='23'
-    else:
-        evaluate = '3'
+    # '3' builds the Widb, which costs one full Ndb scan per winner. --skip-widb
+    # drops it; the representatives, Cdb and Wdb are unaffected.
+    evaluate = '2' if kwargs.get('gen_warnings', False) else ''
+    if not kwargs.get('skip_widb', False):
+        evaluate += '3'
     drep.d_evaluate.d_evaluate_wrapper(wd, evaluate=evaluate, **kwargs)
 
     message = """\

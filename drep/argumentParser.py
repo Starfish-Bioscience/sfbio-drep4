@@ -95,6 +95,13 @@ def parse_args(args):
                 quality filtering. NOT RECOMMENDED! This is useful for use with bacteriophages\
                 or eukaryotes or things where checkM scoring does not work. Will only \
                 choose genomes based on length and N50", action='store_true')
+    Iflags.add_argument("--skip-widb", dest='skip_widb',
+                        help="Skip building the Widb (winner information db). dRep scans the "
+                             "whole Ndb once per winner to build it, which is quadratic in the "
+                             "number of genomes: measured at 25-50 h for 8 908 winners over a "
+                             "201 M-row Ndb, against ~40 min for everything else in the same "
+                             "run. Use it when only the representatives, Cdb and Wdb are needed.",
+                        action='store_true', default=False)
     Iflags.add_argument('--genomeInfo', help='location of .csv or .tsv file containing quality \
                     information on the genomes (the delimiter is detected automatically). Must contain: ["genome"(filename of .fasta file \
                     of that genome, including extension e.g. genome.fasta), "completeness"(0-100 value for completeness of the genome), \

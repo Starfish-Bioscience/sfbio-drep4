@@ -27,7 +27,10 @@ def d_evaluate_wrapper(wd,**kwargs):
     # Determine what to evaluate
     evs = kwargs.get('evaluate')
     options = ['1','2','3']
-    to_eval = drep.d_analyze._parse_plot_options(options, evs)
+    # An empty evaluate string means "nothing to evaluate" -- with --skip-widb and
+    # no --gen_warnings that is the normal case. _parse_plot_options indexes args[0]
+    # and would raise IndexError on it. Tertiary clustering above is unaffected.
+    to_eval = drep.d_analyze._parse_plot_options(options, evs) if evs else []
     logging.debug("evaluating {0}".format(to_eval))
 
     # 1) Evaluate de-replicated genome similarity
@@ -52,7 +55,9 @@ def d_evaluate_wrapper(wd,**kwargs):
         logging.info("{0} warnings generated: saved to {1}".format(len(warnings),warn_log))
 
     # 3) Generate a database of information on winning genomes
-    if '3' in to_eval:
+    if '3' in to_eval and kwargs.get('skip_widb', False):
+        logging.info('skipping Widb (winner information db) -- --skip-widb was passed')
+    elif '3' in to_eval:
         logging.info('will produce Widb (winner information db)')
         Widb = evaluate_winners(wd, **kwargs)
 
