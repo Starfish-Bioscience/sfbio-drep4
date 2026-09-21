@@ -1,0 +1,76 @@
+Bootstrap: docker
+From: condaforge/miniforge3:24.9.2-0
+
+# =============================================================================
+# sfbio dRep — upstream 4.0.1 plus two changes
+# =============================================================================
+#   * vectorised skani parsing plumbing (drep/d_cluster/_fast_skani.py)
+#   * --skip-widb
+#
+# Built FROM THIS REPOSITORY, on purpose. The image it replaces
+# (ghcr.io/starfish-bioscience/drep:4.0.0-sfbio-fastskani) has no versioned
+# source anywhere: the patched tree existed only as a loose directory on disk,
+# so nobody could rebuild it. That is the hole this recipe closes.
+#
+# Deliberately lean. The skani path needs neither mash, nucmer, fastANI nor
+# CheckM, and quality comes in through --genomeInfo, so none of them are
+# installed. Add them here if a non-skani S_algorithm is ever needed.
+#
+# Build (APPTAINER_BINDPATH must be unset, or apptainer tries to bind host
+# paths that do not exist inside the image and %post fails):
+#
+#   cd <repo root>
+#   env -u APPTAINER_BINDPATH apptainer build --fakeroot \
+#       drep-4.0.1-sfbio.sif container/drep.def
+# =============================================================================
+
+%files
+    . /opt/drep-src
+
+%post
+    set -eu
+
+    # skani pinned to the version the reference image carried, so results stay
+    # comparable with the catalogues already built.
+    mamba install -y -q -c conda-forge -c bioconda \
+        python=3.12 \
+        skani=0.2.2 \
+        numpy pandas scipy seaborn matplotlib biopython scikit-learn tqdm \
+        setuptools pytest
+    mamba clean -a -y
+
+    # Drop the git metadata and any build leftovers before installing.
+    rm -rf /opt/drep-src/.git /opt/drep-src/container
+    pip install --no-cache-dir --no-deps /opt/drep-src
+
+    # Fail the build rather than ship an image whose dRep is not ours: both
+    # changes must be present and importable.
+    python -c "import drep, os; v=open(os.path.join(os.path.dirname(drep.__file__),'VERSION')).read().strip(); assert v.startswith('4.0.'), v; print('dRep', v)"
+    python -c "from drep.d_cluster import _fast_skani; assert hasattr(_fast_skani,'load_skani'); print('fastskani OK')"
+    python -c "from drep.argumentParser import parse_args; a=parse_args(['dereplicate','o','-g','a.fa','--skip-widb']); assert a.skip_widb; print('--skip-widb OK')"
+    skani --version
+
+%environment
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
+
+%labels
+    Maintainer  Starfish Bioscience
+    Source      https://github.com/Starfish-Bioscience/sfbio-drep4
+    Upstream    https://github.com/MrOlm/drep
+    dRep        4.0.1-sfbio
+    skani       0.2.2
+
+%help
+    dRep 4.0.1 with the sfbio changes:
+
+      --skip-widb   skip the winner information database. dRep scans the whole
+                    Ndb once per winner to build it: 25-50 h for 8 908 winners
+                    over a 201 M-row Ndb, against ~40 min for the rest of the
+                    run. Nothing in the sfbio catalogue pipeline reads it.
+
+      fastskani     vectorised parsing of skani output. Plumbing only, no
+                    formula touched; the vanilla implementations are kept as
+                    _load_skani_vanilla and _add_avani_vanilla.
+
+    Source and rationale: https://github.com/Starfish-Bioscience/sfbio-drep4
