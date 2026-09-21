@@ -154,49 +154,14 @@ def run_pairwise_skani(genome_list, outdir, **kwargs):
     return fdb
 
 def load_triangle_matrix(file_path):
-    with open(file_path, 'r') as f:
-        lines = f.readlines()
-
-    # Get the number of genomes
-    num_genomes = int(lines[0].strip())
-
-    # Initialize lists to store data
-    reference = []
-    query = []
-    ani = []
-
-    # Parse the matrix
-    for i in range(1, num_genomes + 1):
-        row = lines[i].strip().split('\t')
-        ref_genome = row[0]
-        for j in range(1, i + 1):
-            query_genome = lines[j].strip().split('\t')[0]
-            ani_value = float(row[j])
-            reference.append(ref_genome)
-            query.append(query_genome)
-            ani.append(ani_value)
-
-    # Create a DataFrame
-    df = pd.DataFrame({'reference': reference, 'querry': query, 'ani': ani})
-    return df
+    # PATCH plomberie : version vectorisee, semantique et ordre des lignes inchanges.
+    from drep.d_cluster import _fast_skani
+    return _fast_skani.load_triangle_matrix(file_path)
 
 def load_matrix_to_dataframe(file_path):
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
-
-    num_genomes = int(lines[0].strip())
-    genomes = [line.split('\t')[0] for line in lines[1:num_genomes + 1]]
-
-    data = []
-    for i in range(num_genomes):
-        for j in range(num_genomes):
-            genome1 = genomes[i]
-            genome2 = genomes[j]
-            ani = float(lines[i + 1].split('\t')[j + 1])
-            data.append([genome1, genome2, ani])
-
-    df = pd.DataFrame(data, columns=['reference', 'querry', 'ani'])
-    return df
+    # PATCH plomberie : idem.
+    from drep.d_cluster import _fast_skani
+    return _fast_skani.load_matrix_to_dataframe(file_path)
 
 def fastani_one_vs_many(one, many, genome_rep_file, outdir, **kwargs):
     p = kwargs.get('processors', 6)
@@ -231,6 +196,12 @@ def load_fastani(file):
     return fdb
 
 def load_skani(file):
+    # PATCH plomberie : construit le resultat depuis les deux matrices, sans merge.
+    # Conserve la correction d'unite de la v4 (AF ramene en fraction).
+    from drep.d_cluster import _fast_skani
+    return _fast_skani.load_skani(file)
+
+def _load_skani_vanilla(file):
     # Load the ani triangle
     adb = load_triangle_matrix(file)
     adb['ani'] = adb['ani'] / 100
@@ -708,6 +679,11 @@ def _gen_nomash_cdb(Bdb):
 
 
 def add_avani(db):
+    # PATCH plomberie : moyenne reciproque vectorisee, repli sur l'original si besoin.
+    from drep.d_cluster import _fast_skani
+    return _fast_skani.add_avani(db, _vanilla=_add_avani_vanilla)
+
+def _add_avani_vanilla(db):
     '''
     add a column titled 'av_ani' to the passed in dataframe
 
